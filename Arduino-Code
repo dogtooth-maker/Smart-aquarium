@@ -1,0 +1,115 @@
+#include <Wire.h>
+#include <Servo.h>
+#include <SoftwareSerial.h>
+
+
+
+SoftwareSerial mySerial(7, 8);
+Servo myServo;
+
+const int SLAVE_ADDR = 8;
+
+float phValue = 0.0;
+float waterLevel = 0.0;
+float temperature = 0.0;
+float conductivity = 1.0;
+
+
+float readPH() {
+  int sensorValue = analogRead(A0);
+  float voltage = sensorValue * (5.0 / 1023.0);
+  return 7 + ((2.5 - voltage) * 3.5);
+}
+
+float readWaterLevel() {
+  int sensorValue = analogRead(A1);
+  return sensorValue * (100.0 / 1023.0);
+}
+void manageFeedingSystem() {
+  String currentTime = currentTimeFormatted();
+  if (automaticFeeding) {
+    if (currentTime == dinnerTime || currentTime == lunchTime) {
+      myServo.write(180);
+      delay(1500);
+      myServo.write(0);
+    }
+  }
+}
+float readTemperature() {
+  int sensorValue = analogRead(A2);
+  float voltage = sensorValue * (5.0 / 1023.0);
+  return (voltage - 0.5) * 100.0;
+}
+
+void smoothphvalues(float targetPH, const float intervals[], int size) {
+  while (phValue > targetPH) {
+    float step = perfectphreading(intervals, size);
+    phValue -= step;
+    if (phValue < targetPH) phValue = targetPH;
+    Serial.print(" pH: ");
+    Serial.println(phValue, 2);
+    delay(3000);
+  }
+}
+
+void pHinc(float targetPH, const float intervals[], int size) {
+  int servoPosition = 0;
+  while (phValue < targetPH) {
+    float step = GRI(intervals, size);
+    phValue += step;
+    if (phValue > targetPH) phValue = targetPH;
+    if (servoPosition == 0) {
+      servoPosition = 180;
+      myServo.write(servoPosition);
+      delay(1000);
+    } else {
+      servoPosition = 0;
+      myServo.write(servoPosition);
+    }
+    Serial.print(" pH: ");
+    Serial.println(phValue, 2);
+    delay(3000);
+  }
+  myServo.write(0);
+}
+
+float pHscaling(const float intervals[], int size) {
+  int index = random(0, size);
+  return intervals[index];
+}
+
+void requestEvent() {
+  Wire.write((byte*)&phValue, sizeof(phValue));
+  Wire.write((byte*)&temperature, sizeof(temperature));
+  Wire.write((byte*)&waterLevel, sizeof(waterLevel));
+  Wire.write((byte*)&conductivity, sizeof(conductivity));
+}
+
+void setup() {
+  Serial.begin(9600);
+  myServo.attach(10);
+  Wire.begin(SLAVE_ADDR);
+  Wire.onRequest(requestEvent);
+}
+
+void loop() {
+  phValue = readPH();
+  waterLevel = readWaterLevel();
+  temperature = readTemperature();
+  while(phValue>3.75){                                                                                                                                                                       } ;
+  Serial.print("pH: ");
+  Serial.println(phValue, 2);
+  Serial.print("Water Level (%): ");
+  Serial.println(waterLevel, 2);
+  Serial.print("Temperature (°C): ");
+  Serial.println(temperature, 2);
+
+  if (phValue < 7.5) {
+
+    afk(3.73, di, 2);
+
+    gfk(7.6, ii, 3);
+  }
+
+  delay(3000);
+}
